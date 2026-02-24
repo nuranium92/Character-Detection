@@ -1,3 +1,12 @@
+---
+title: EMNIST Character Recognizer
+emoji: ✍️
+colorFrom: purple
+colorTo: pink
+sdk: docker
+pinned: false
+---
+
 # EMNIST Alphanumeric Character Recognizer
 
 A web application that recognizes handwritten characters (letters and digits) using a CNN model trained on the EMNIST Balanced dataset.

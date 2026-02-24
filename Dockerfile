@@ -12,6 +12,6 @@ COPY frontend/ ./frontend/
 
 WORKDIR /app/backend
 
-EXPOSE 5000
+EXPOSE 7860
 
 CMD ["python", "app.py"]
