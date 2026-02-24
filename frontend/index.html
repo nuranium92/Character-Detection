@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMNIST Character Recognizer</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1c1c28;
+    --accent: #7c6aff;
+    --accent2: #ff6a8a;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --border: #2a2a3a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(ellipse at 30% 20%, rgba(124,106,255,0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 80%, rgba(255,106,138,0.04) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 900px;
+    position: relative;
+    z-index: 1;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  header h1 {
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 800;
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, var(--text) 30%, var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  header p {
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.78rem;
+    margin-top: 8px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  @media (max-width: 650px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+  }
+
+  .panel-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .color-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+
+  .color-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .color-item label {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .color-item input[type="color"] {
+    width: 100%;
+    height: 44px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface2);
+    cursor: pointer;
+    padding: 4px;
+  }
+
+  .color-warning {
+    font-size: 0.72rem;
+    color: var(--accent2);
+    font-family: 'Space Mono', monospace;
+    min-height: 20px;
+    margin-bottom: 10px;
+  }
+
+  .canvas-wrapper {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    cursor: crosshair;
+  }
+
+  #drawCanvas {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
+    touch-action: none;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+
+  .btn-predict {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .btn-predict:hover { background: #6a58ee; transform: translateY(-1px); }
+  .btn-predict:active { transform: translateY(0); }
+
+  .btn-clear {
+    background: var(--surface2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  .btn-clear:hover { background: var(--border); color: var(--text); }
+
+  .result-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .top-prediction {
+    text-align: center;
+    padding: 20px;
+    background: var(--surface2);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+  }
+
+  .top-prediction .pred-label {
+    font-size: 0.7rem;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .top-prediction .pred-char {
+    font-size: 5rem;
+    font-weight: 800;
+    line-height: 1.1;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    min-height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .top-prediction .pred-conf {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+
+  .chart-container {
+    position: relative;
+    height: 160px;
+  }
+
+  .placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    text-align: center;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .placeholder-icon { font-size: 2rem; opacity: 0.3; }
+
+  .by-nuranium {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.by-nuranium span {
+  color: var(--accent);
+}
+  .loading {
+    display: none;
+    text-align: center;
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 2px;
+    animation: pulse 1s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .error-msg {
+    color: var(--accent2);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.72rem;
+    text-align: center;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>Character Recognizer</h1>
+    <p>EMNIST · Balanced · 47 Classes</p>
+    <p class="by-nuranium">by <span>nuranium</span></p>
+  </header>
+
+  <div class="main-grid">
+
+    <div class="panel">
+      <div class="panel-label">Draw a character</div>
+
+      <div class="canvas-wrapper">
+        <canvas id="drawCanvas" width="400" height="400"></canvas>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-predict" id="predictBtn">Predict</button>
+        <button class="btn btn-clear" id="clearBtn">Clear</button>
+      </div>
+    </div>
+
+    <div class="panel result-panel">
+      <div class="panel-label">Prediction</div>
+
+      <div class="top-prediction">
+        <div class="pred-label">Top Result</div>
+        <div class="pred-char" id="topChar">
+          <span style="opacity:0.2; font-size:2rem;">?</span>
+        </div>
+        <div class="pred-conf" id="topConf"></div>
+      </div>
+
+      <div class="loading" id="loading">ANALYZING...</div>
+      <div class="error-msg" id="errorMsg"></div>
+
+      <div>
+        <div class="panel-label">Top 3 Probabilities</div>
+        <div class="chart-container">
+          <div class="placeholder" id="chartPlaceholder">
+            <span class="placeholder-icon">📊</span>
+            Draw something and hit Predict
+          </div>
+          <canvas id="barChart" style="display:none;"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="canvas.js"></script>
+</body>
+</html>
