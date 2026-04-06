@@ -1,11 +1,3 @@
----
-title: EMNIST Character Recognizer
-emoji: ✍️
-colorFrom: purple
-colorTo: pink
-sdk: docker
-pinned: false
----
 
 # EMNIST Alphanumeric Character Recognizer
 
